@@ -1,0 +1,15 @@
+#!/bin/bash
+
+[ "${1}" != '1' ] && echo '' && exit 0
+cd "${2}"
+topPath="$(git rev-parse --show-toplevel)"
+
+if [ -n "${topPath}" ];
+then
+    relativePath=$(echo "${2}" | sed "s%${topPath}%%")
+    relativePath="(git-root)${relativePath}"
+    repositoryName=$(basename ${topPath})
+    echo "#[fg=colour17,nobold]#[fg=colour24,bg=colour17] #[fg=colour31,bg=colour24] #[fg=colour231,bg=colour31,bold] ${repositoryName}#[fg=colour17,nobold]  #[fg=colour231,nobold]${relativePath} "
+else
+    echo "#[fg=colour17,nobold]#[fg=colour24,bg=colour17] #[fg=colour31,bg=colour24] #[fg=colour231,bg=colour31,bold] ${2}#[fg=colour17,nobold]  #[fg=colour231,nobold] "
+fi

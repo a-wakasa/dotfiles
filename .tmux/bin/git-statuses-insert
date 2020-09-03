@@ -1,0 +1,46 @@
+#!/bin/bash
+
+here=$(cd $(dirname $0); pwd)
+cd "${1}"
+
+_GIT_STATUS=$(python "${here}/gitstatus.py")
+declare -a statuses
+statuses=(${_GIT_STATUS})
+
+GIT_BRANCH_STYLE="#[fg=colour117,bold]"
+GIT_STAGED_STYLE="#[fg=colour46,nobold]"
+GIT_CHANGED_STYLE="#[fg=colour196,nobold]"
+GIT_UNTRACKED_STYLE="#[fg=colour207,nobold]"
+
+STAT_CLEAN_STYLE="#[fg=colour31,bg=colour24]#[fg=green,nobold]"
+STAT_READY_STYLE="#[fg=colour31,bg=colour24]#[fg=green,nobold]"
+STAT_ALERT_STYLE="#[fg=colour31,bg=colour24]#[fg=red,nobold]"
+STAT_TERMINATOR="#[fg=colour231,bg=default]"
+
+if [ ! -n "${statuses[0]}" ];
+then
+    echo ' #[fg=colour231] #[fg=colour31,bg=default]'
+    exit 0
+fi
+
+GIT_INFO="${GIT_BRANCH_STYLE} @${statuses[0]}"
+if [ "$(expr ${statuses[1]} + ${statuses[2]} + ${statuses[3]} + ${statuses[4]} + ${statuses[5]})" -eq "0" ];
+then
+    GIT_STAT="${STAT_CLEAN_STYLE} ✔ "
+elif [ "$(expr ${statuses[2]} + ${statuses[3]} + ${statuses[4]} + ${statuses[5]})" -eq "0" ];
+then
+    GIT_STAT="${STAT_READY_STYLE} ➦ "
+elif [ "${statuses[4]}" -ne "0" ];
+then
+    GIT_STAT="${STAT_ALERT_STYLE} ✘ "
+elif [ "${statuses[2]}" -ne "0" ];
+then
+    GIT_STAT="${STAT_ALERT_STYLE} ➥ "
+else
+    GIT_STAT="${STAT_CLEAN_STYLE} ✚ "
+fi
+[ "${statuses[3]}" -ne "0" ] && GIT_INFO="${GIT_INFO}${GIT_STAGED_STYLE} +${statuses[3]}"
+[ "${statuses[5]}" -ne "0" ] && GIT_INFO="${GIT_INFO}${GIT_CHANGED_STYLE} +${statuses[5]}"
+[ "${statuses[6]}" -ne "0" ] && GIT_INFO="${GIT_INFO}${GIT_UNTRACKED_STYLE} +${statuses[6]}"
+
+echo "${GIT_INFO} ${GIT_STAT}${STAT_TERMINATOR}"

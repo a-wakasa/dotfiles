@@ -1,0 +1,5 @@
+#!/usr/local/bin/zsh
+
+[ $# -lt 1 ] && echo 'too few arguments.' >&2 && exit 1
+[[ ! ${1} =~ ^[0-9]*$ ]] && echo 'wrong argument type.' >&2 && exit 1
+psql -c "SELECT pg_terminate_backend(${1});"

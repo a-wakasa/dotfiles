@@ -1,0 +1,35 @@
+#!/usr/local/bin/zsh
+
+colwidth=$(echo "$(tput cols) - 65" | bc)
+trimsize=$(echo "${colwidth} - 3" | bc)
+
+psql -q -f - << __EOQ__
+SELECT
+    pid,
+    usename AS user,
+    TO_CHAR(start_jst, 'YYYY-MM-DD HH24:MI:SS') AS start,
+    TO_CHAR(NOW() - start_utc, 'HH24:MI:SS') AS lap,
+    CASE WHEN CHAR_LENGTH(query) >${colwidth}
+        THEN CONCAT(SUBSTRING(query, 1, ${trimsize}), '...')
+        ELSE query
+    END AS current_query
+FROM
+    (SELECT
+        backendid,
+        PG_STAT_GET_BACKEND_PID(S.backendid) AS pid,
+        PG_STAT_GET_BACKEND_USERID(S.backendid) AS userid,
+        PG_STAT_GET_BACKEND_ACTIVITY_START(S.backendid) AS start_utc,
+        PG_STAT_GET_BACKEND_ACTIVITY_START(S.backendid) + interval '9 hours' AS start_jst,
+        REGEXP_REPLACE(PG_STAT_GET_BACKEND_ACTIVITY(S.backendid), '[\\n ]+', ' ', 'g') AS query
+    FROM
+        (SELECT PG_STAT_GET_BACKEND_IDSET() AS backendid) AS S
+    ) AS S
+LEFT OUTER JOIN
+    pg_user AS U
+ON
+    S.userid = U.usesysid
+WHERE
+    query <> ''
+ORDER BY
+    lap DESC;
+__EOQ__

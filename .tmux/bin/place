@@ -1,0 +1,14 @@
+#!/bin/bash
+
+cd "${1}"
+topPath=$(git rev-parse --show-toplevel)
+
+if [ -n "${topPath}" ];
+then
+    relativePath=$(echo "${1}" | sed "s%${topPath}%%")
+    repositoryName=$(basename ${topPath})
+    [ ! -n "${relativePath}" ] && relativePath="/"
+    echo "(${repositoryName})#[nobold]${relativePath}"
+else
+    echo "${1}"
+fi

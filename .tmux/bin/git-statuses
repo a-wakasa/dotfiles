@@ -1,0 +1,56 @@
+#!/bin/bash
+
+[ "${1}" != '1' ] && echo '' && exit 0
+here=$(cd $(dirname $0); pwd)
+cd "${2}"
+
+_GIT_STATUS=$(python "${here}/gitstatus.py")
+declare -a statuses
+statuses=(${_GIT_STATUS})
+
+if [ "${3}" = '--insert-theme' ];
+then
+    [ ! -n "${statuses[0]}" ] && echo '#[default]' && exit 0
+    GIT_BRANCH_STYLE="#[fg=colour117,bold]"
+    GIT_STAGED_STYLE="#[fg=colour46]"
+    GIT_CHANGED_STYLE="#[fg=colour196]"
+    GIT_UNTRACKED_STYLE="#[fg=colour207]"
+    STAT_CLEAN_STYLE="#[fg=green,bg=colour24]#[fg=colour22,bg=green,nobold] __MARK__  #[fg=default]#[default]"
+    STAT_READY_STYLE="#[fg=green,bg=colour24]#[fg=colour22,bg=green,nobold] __MARK__  #[fg=default]#[default]"
+    STAT_ALERT_STYLE="#[fg=red,bg=colour24]#[fg=colour52,bg=red,nobold] __MARK__  #[fg=default]#[default]"
+else
+    GIT_BRANCH_STYLE="#[fg=colour148,bold]"
+    GIT_STAGED_STYLE="#[fg=colour46]"
+    GIT_CHANGED_STYLE="#[fg=colour196]"
+    GIT_UNTRACKED_STYLE="#[fg=colour207]"
+    STAT_CLEAN_STYLE="#[fg=colour22,bg=green,nobold] __MARK__ #[default]"
+    STAT_READY_STYLE="#[fg=colour22,bg=green,nobold] __MARK__ #[default]"
+    STAT_ALERT_STYLE="#[fg=colour52,bg=red,nobold] __MARK__ #[default]"
+fi
+
+GIT_INFO="#[fg=colour24]#[bg=colour24]${GIT_BRANCH_STYLE}   ${statuses[0]}#[nobold]"
+if [ "$(expr ${statuses[1]} + ${statuses[2]} + ${statuses[3]} + ${statuses[4]} + ${statuses[5]})" -eq "0" ];
+then
+    #GIT_STAT="${STAT_CLEAN_STYLE} ✔ "
+    GIT_STAT="$(echo "${STAT_CLEAN_STYLE}" | sed 's/__MARK__/✔/')"
+elif [ "$(expr ${statuses[2]} + ${statuses[3]} + ${statuses[4]} + ${statuses[5]})" -eq "0" ];
+then
+    #GIT_STAT="${STAT_READY_STYLE} ➦ "
+    GIT_STAT="$(echo "${STAT_READY_STYLE}" | sed 's/__MARK__/➦/')"
+elif [ "${statuses[4]}" -ne "0" ];
+then
+    #GIT_STAT="${STAT_ALERT_STYLE} ✘ "
+    GIT_STAT="$(echo "${STAT_ALERT_STYLE}" | sed 's/__MARK__/✘/')"
+elif [ "${statuses[2]}" -ne "0" ];
+then
+    #GIT_STAT="${STAT_ALERT_STYLE} ➥ "
+    GIT_STAT="$(echo "${STAT_ALERT_STYLE}" | sed 's/__MARK__/➥/')"
+else
+    #GIT_STAT="${STAT_CLEAN_STYLE} ✚ "
+    GIT_STAT="$(echo "${STAT_CLEAN_STYLE}" | sed 's/__MARK__/✚/')"
+fi
+[ "${statuses[3]}" -ne "0" ] && GIT_INFO="${GIT_INFO}${GIT_STAGED_STYLE} +${statuses[3]}"
+[ "${statuses[5]}" -ne "0" ] && GIT_INFO="${GIT_INFO}${GIT_CHANGED_STYLE} +${statuses[5]}"
+[ "${statuses[6]}" -ne "0" ] && GIT_INFO="${GIT_INFO}${GIT_UNTRACKED_STYLE} +${statuses[6]}"
+
+echo "${GIT_INFO} ${GIT_STAT}"

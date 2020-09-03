@@ -1,0 +1,19 @@
+#!/usr/local/bin/zsh
+
+psql -Aq -F, -f - << __EOQ__
+SELECT
+    table_name,
+    bytes,
+    CASE
+        WHEN bytes/POW(1024,3) > 1.0 THEN CONCAT(CAST(TRUNC(CAST(bytes/POW(1024,3) AS NUMERIC),3) AS TEXT), 'GB')
+        WHEN bytes/POW(1024,2) > 1.0 THEN CONCAT(CAST(TRUNC(CAST(bytes/POW(1024,2) AS NUMERIC),3) AS TEXT), 'MB')
+        WHEN bytes/1024 > 1.0 THEN CONCAT(CAST(TRUNC(CAST(bytes/1024 AS NUMERIC),3) AS TEXT), 'KB')
+        ELSE CONCAT(CAST(bytes AS TEXT), 'B')
+    END AS volume
+FROM (
+    SELECT relname AS table_name, CAST(relpages AS BIGINT) * 8192 AS bytes
+    FROM pg_class
+) size
+ORDER BY
+    bytes DESC
+__EOQ__
