@@ -1,0 +1,91 @@
+#!/bin/zsh
+
+local -A opthash
+zparseopts -D -M -A opthash -- \
+    h -help=h \
+    v -verbose=v \
+    m: -method:=m \
+    d: -data:=d \
+    e: -env:=e
+
+local message=$(cat <<-__HELP__
+$(basename ${0}):
+  Throw request to backend API via authorization.
+
+USAGE: 
+  $(basename ${0}) [-hv] [-m <METHOD>] [-d <DATA>] [-e <ENV>] <API PATH>
+
+OPTIONS:
+  -h|--help              print this.
+  -v|--verbose           execution with print logs to STDERR.
+  -m|--method <METHOD>   specify request method. (default 'GET')
+  -d|--data <DATA>       specify http POST data.
+  -e|--env <ENV>         specify environment like dev|stg. (default 'dev')
+
+EXAMPLE:
+  $(basename ${0}) -v '/api/accounts/organizations/?ignore_pager=True'
+ 
+__HELP__
+)
+
+function usage() {
+    echo ${message}
+    exit 0
+}
+
+[[ ! -n "${1}" ]] || [[ -n "${opthash[(i)-h]}" ]] && usage
+
+local env='dev'
+[[ -n "${opthash[(i)-e]}" ]] && env=${opthash[-e]}
+
+local -A hostmap=(
+    ["dev"]='localhost:8000'
+    ["stg"]='staging-api-alb-1813612901.ap-northeast-1.elb.amazonaws.com:8000'
+)
+local -A usermap=(
+    ["dev"]='test_admin_company@example.com'
+    #["dev"]='test_ad_company_admin@example.com'
+    #["dev"]='test_advertiser_admin@example.com'
+    ["stg"]='test_admin_company@example.com'
+)
+local -A passmap=(
+    ["dev"]='adminadmin'
+    ["stg"]='adminadmin'
+)
+
+local host=${hostmap[${env}]}
+local user=${usermap[${env}]}
+local pass=${passmap[${env}]}
+local apipath=$(echo "${1}" | awk -F\? '{print "/" $1 "/"}' | sed 's%/\+%/%g')
+local params=$(echo "${1}" | awk -F\? '{print $2}')
+[[ -n "${params}" ]] && params="?${params}"
+
+declare -g -A auth
+declare -g -A request
+local -A headers
+
+### retrieve token
+headers=(
+    ["Content-Type"]="application/json"
+)
+auth[endpoint]="http://${host}/api/accounts/token/"
+auth[headers]=$(for key val in ${(kv)headers}; do echo -n " -H '${key}: ${val}'"; done | sed 's/^ *//')
+auth[data]="{\"email\":\"${user}\",\"password\":\"${pass}\"}"
+
+### test target api
+headers=(
+    ["Content-Type"]="application/json"
+    ["Authorization"]="JWT $(eval "curl -s -X POST '${auth[endpoint]}' ${auth[headers]} --data '${auth[data]}'" | jq -r '.token')"
+)
+request[endpoint]="http://${host}${apipath}${params}"
+request[headers]=$(for key val in ${(kv)headers}; do echo -n " -H '${key}: ${val}'"; done | sed 's/^ *//')
+request[data]=''
+request[method]='GET'
+request[silent]=' -s'
+[[ -n "${opthash[(i)-d]}" ]] && request[data]="--data '${opthash[-d]}'"
+[[ -n "${opthash[(i)-m]}" ]] && request[method]=${opthash[-m]}
+[[ -n "${opthash[(i)-v]}" ]] && request[silent]=''
+
+local cmd="curl${request[silent]} -X ${request[method]} '${request[endpoint]}' ${request[headers]} ${request[data]}"
+[[ -n "${opthash[(i)-v]}" ]] && echo "${cmd}" >&2
+eval "${cmd}"
